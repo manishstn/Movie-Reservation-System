@@ -8,6 +8,7 @@ public class MovieReservationSystemApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(MovieReservationSystemApplication.class, args);
+        System.out.println("Application Started");
 	}
 
 }

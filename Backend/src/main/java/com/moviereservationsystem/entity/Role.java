@@ -1,7 +1,6 @@
 package com.moviereservationsystem.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor @Data @AllArgsConstructor @Builder
 public class Role {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String name;
