@@ -35,4 +35,7 @@ public class Showtime {
 
     @Column(name = "base_price", nullable = false)
     private BigDecimal basePrice;
+
+    @Column(name = "is_active")
+    private boolean isActive = true;
 }

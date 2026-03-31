@@ -21,6 +21,14 @@ public class GlobalExceptionHandler {
         return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Business Rule Violation");
+        error.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Object>handleBadCredentials(BadCredentialsException bce){
         return buildResponse("Invalid email or password",HttpStatus.UNAUTHORIZED);
