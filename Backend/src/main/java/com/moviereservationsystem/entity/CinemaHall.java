@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Entity
 @Data
 @AllArgsConstructor @NoArgsConstructor @Builder
@@ -24,4 +26,8 @@ public class CinemaHall {
 
     @Column(name="seat_per_rows")
     private Integer seatPerRows;
+
+    @OneToMany(mappedBy = "cinemaHall", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Seat> seats;
+
 }

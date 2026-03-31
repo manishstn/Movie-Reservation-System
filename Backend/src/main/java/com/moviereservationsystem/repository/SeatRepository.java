@@ -10,5 +10,6 @@ import java.util.List;
 public interface SeatRepository extends JpaRepository<Seat,Long> {
     List<Seat> findByCinemaHallId(Long hallId);
     List<Seat> findByCinemaHallIdOrderByRowIdentifierAscSeatNumberAsc(Long hallId);
+    void deleteByCinemaHallId(Long hallId);
     long countByCinemaHallId(Long hallId);
 }

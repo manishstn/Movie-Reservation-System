@@ -38,6 +38,9 @@ public class Movie {
     @Column(name ="poster_url")
     private String posterUrl;
 
+    @Builder.Default
+    private boolean isActive = true;
+
     @CreationTimestamp
     @Column(name = "created_at" ,nullable = false)
     private LocalDate createdAt;
