@@ -9,6 +9,12 @@ import com.moviereservationsystem.repository.SeatRepository;
 import com.moviereservationsystem.repository.ShowTimeRepository;
 import com.moviereservationsystem.service.CinemaHallService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +25,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CinemaHallServiceImpl implements CinemaHallService {
 
     private final CinemaHallRepository hallRepository;
@@ -27,10 +34,10 @@ public class CinemaHallServiceImpl implements CinemaHallService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "halls", allEntries = true)
     public CinemaHall createHall(CinemaHallRequest request) {
-        // LLD Rule: Unique Name Check
         if (hallRepository.existsByNameIgnoreCase(request.name())) {
-            throw new RuntimeException("Hall configuration error: Name '" + request.name() + "' is already in use.");
+            throw new RuntimeException("Conflict: Hall name '" + request.name() + "' already exists.");
         }
 
         CinemaHall hall = CinemaHall.builder()
@@ -40,20 +47,35 @@ public class CinemaHallServiceImpl implements CinemaHallService {
                 .build();
 
         CinemaHall savedHall = hallRepository.save(hall);
-
-        // LLD Algorithm: Bulk Seat Initialization
         generateSeatsForHall(savedHall);
 
+        log.info("Hall created with ID: {} and seats generated.", savedHall.getId());
         return savedHall;
     }
 
     @Override
+    @Cacheable(value = "halls", key = "{#pageable.pageNumber, #pageable.pageSize}")
+    public Page<CinemaHall> getAllHalls(Pageable pageable) {
+        return hallRepository.findAll(pageable);
+    }
+
+    @Override
+    @Cacheable(value = "hall_details", key = "#id")
+    public CinemaHall getHallById(Long id) {
+        return hallRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cinema Hall not found with ID: " + id));
+    }
+
+    @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "halls", allEntries = true),
+            @CacheEvict(value = "hall_details", key = "#id")
+    })
     public CinemaHall updateHallName(Long id, String newName) {
-        CinemaHall hall = hallRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Update Failed: Cinema Hall with ID " + id + " not found."));
-       if (hallRepository.existsByNameIgnoreCaseAndIdNot(newName, id)) {
-            throw new RuntimeException("Conflict: A hall with the name '" + newName + "' already exists.");
+        CinemaHall hall = getHallById(id);
+        if (hallRepository.existsByNameIgnoreCaseAndIdNot(newName, id)) {
+            throw new RuntimeException("Conflict: Name '" + newName + "' is already in use.");
         }
         hall.setName(newName);
         return hallRepository.save(hall);
@@ -61,32 +83,52 @@ public class CinemaHallServiceImpl implements CinemaHallService {
 
     @Override
     @Transactional
-    public void deleteHall(Long id) {
-        // LLD Guard: Business Dependency Check
-        // Prevents deleting a hall if users have already booked tickets for a future show in it.
-        boolean isHallInUse = showtimeRepository.existsByCinemaHallIdAndEndTimeAfter(id, LocalDateTime.now());
+    @Caching(evict = {
+            @CacheEvict(value = "halls", allEntries = true),
+            @CacheEvict(value = "hall_details", key = "#hallId")
+    })
+    public void updateRowTier(Long hallId, String rowIdentifier, String tier) {
+        log.info("Bulk updating tier to {} for Hall {} Row {}", tier, hallId, rowIdentifier);
+        List<Seat> seats = seatRepository.findByCinemaHallIdAndRowIdentifier(hallId, rowIdentifier);
 
-        if (isHallInUse) {
-            throw new IllegalStateException("Deletion Denied: Hall is currently linked to active or upcoming showtimes.");
+        if (seats.isEmpty()) {
+            throw new RuntimeException("No seats found for the specified hall and row.");
         }
 
-        CinemaHall hall = hallRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Hall not found"));
+        SeatTier targetTier = SeatTier.valueOf(tier.toUpperCase());
+        seats.forEach(seat -> seat.setSeatTier(targetTier));
+        seatRepository.saveAll(seats);
+    }
 
-        // CascadeType.ALL in Entity handles Seat deletion
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "halls", allEntries = true),
+            @CacheEvict(value = "hall_details", key = "#id")
+    })
+    public void deleteHall(Long id) {
+        // LLD Guard: Prevent deletion if active showtimes exist
+        boolean isHallInUse = showtimeRepository.existsByCinemaHallIdAndEndTimeAfter(id, LocalDateTime.now());
+        if (isHallInUse) {
+            throw new IllegalStateException("Integrity Violation: Active or upcoming showtimes are linked to this hall.");
+        }
+
+        CinemaHall hall = getHallById(id);
         hallRepository.delete(hall);
+        log.warn("Cinema Hall ID {} deleted successfully.", id);
     }
 
     @Override
     public Map<String, Object> getHallAnalytics(Long id) {
         CinemaHall hall = getHallById(id);
-        long physicalSeatCount = seatRepository.countByCinemaHallId(id);
+        long actualSeatCount = seatRepository.countByCinemaHallId(id);
 
         return Map.of(
                 "hallName", hall.getName(),
                 "totalCapacity", (long) hall.getTotalRows() * hall.getSeatPerRows(),
-                "actualSeatsInDb", physicalSeatCount,
-                "isDataConsistent", physicalSeatCount == (long) hall.getTotalRows() * hall.getSeatPerRows()
+                "actualSeatsInDb", actualSeatCount,
+                "isDataConsistent", actualSeatCount == (long) hall.getTotalRows() * hall.getSeatPerRows(),
+                "timestamp", LocalDateTime.now()
         );
     }
 
@@ -99,21 +141,10 @@ public class CinemaHallServiceImpl implements CinemaHallService {
                         .cinemaHall(hall)
                         .rowIdentifier(rowLetter)
                         .seatNumber(col)
-                        // LLD Business Rule: Row A & B are Premium
                         .seatTier(row < 2 ? SeatTier.PREMIUM : SeatTier.STANDARD)
                         .build());
             }
         }
         seatRepository.saveAll(seats);
-    }
-
-    @Override
-    public CinemaHall getHallById(Long id) {
-        return hallRepository.findById(id).orElseThrow(() -> new RuntimeException("Hall not found"));
-    }
-
-    @Override
-    public List<CinemaHall> getAllHalls() {
-        return hallRepository.findAll();
     }
 }

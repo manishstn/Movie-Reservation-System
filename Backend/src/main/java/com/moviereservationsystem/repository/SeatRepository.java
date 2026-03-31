@@ -12,4 +12,5 @@ public interface SeatRepository extends JpaRepository<Seat,Long> {
     List<Seat> findByCinemaHallIdOrderByRowIdentifierAscSeatNumberAsc(Long hallId);
     void deleteByCinemaHallId(Long hallId);
     long countByCinemaHallId(Long hallId);
+    List<Seat> findByCinemaHallIdAndRowIdentifier(Long hallId, String rowIdentifier);
 }
