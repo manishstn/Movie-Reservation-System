@@ -20,18 +20,12 @@
         </encoder>
     </appender>
 
-    <springProfile name="local">
-        <root level="INFO">
-            <appender-ref ref="CONSOLE" />
-        </root>
-        <logger name="com.moviereservationsystem" level="DEBUG" />
-        <logger name="org.hibernate.SQL" level="DEBUG" />
-    </springProfile>
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </root>
 
-    <springProfile name="dev">
-        <root level="INFO">
-            <appender-ref ref="CONSOLE" />
-            <appender-ref ref="FILE" />
-        </root>
-    </springProfile>
+    <logger name="com.moviereservationsystem" level="DEBUG" />
+    <logger name="org.hibernate.SQL" level="DEBUG" />
+
 </configuration>
