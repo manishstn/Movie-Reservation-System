@@ -1,5 +1,6 @@
 package com.moviereservationsystem.entity;
 
+import com.moviereservationsystem.enums.Genre;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +10,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name="movies")
@@ -41,11 +45,14 @@ public class Movie {
     @Builder.Default
     private boolean isActive = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at" ,nullable = false)
-    private LocalDate createdAt;
+    @ElementCollection(targetClass = Genre.class, fetch = FetchType.EAGER)
+    @Enumerated(EnumType.STRING)
+    @CollectionTable(name = "movie_genres", joinColumns = @JoinColumn(name = "movie_id"))
+    @Column(name = "genre")
+    private Set<Genre> genres = new HashSet<>();
 
+    @CreationTimestamp @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt; // Fixed from LocalDate [cite: 43]
     @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDate updatedAt;
+    private LocalDateTime updatedAt;
 }

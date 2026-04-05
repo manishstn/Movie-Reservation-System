@@ -1,19 +1,25 @@
 package com.moviereservationsystem.service.impl;
 
 import com.moviereservationsystem.dto.ShowtimeRequest;
+import com.moviereservationsystem.dto.ShowtimeResponse;
 import com.moviereservationsystem.entity.*;
 import com.moviereservationsystem.enums.SeatStatus;
 import com.moviereservationsystem.repository.*;
 import com.moviereservationsystem.service.ShowtimeService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ShowtimeServiceImpl implements ShowtimeService {
 
     private final ShowTimeRepository showtimeRepository;
@@ -70,4 +76,23 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     public List<ShowTimeSeat> getSeatingPlan(Long id) {
         return showTimeSeatRepository.findByShowtimeIdOrderBySeatRowIdentifierAscSeatSeatNumberAsc(id);
     }
+
+    @Override
+    @Cacheable(
+            value = "public_schedule",
+            key = "'sched-' + (#movieId ?: 'all') + '-' + (#hallId ?: 'all') + '-' + T(java.time.LocalDate).now().toString()",
+            unless = "#result == null || #result.isEmpty()"
+    )
+    public List<ShowtimeResponse> getPublicSchedule(Long movieId, Long hallId) {
+        log.info("System Architect: Generating live schedule for Movie: {} | Hall: {}", movieId, hallId);
+
+        // LLD: Precision Windowing for Today
+        LocalDateTime startOfDay = LocalDateTime.now().with(LocalTime.MIN);
+        LocalDateTime endOfDay = LocalDateTime.now().with(LocalTime.MAX);
+
+        return null;
+//        return showtimeRepository.findPublicSchedule(movieId, hallId, startOfDay, endOfDay);
+    }
+
+
 }

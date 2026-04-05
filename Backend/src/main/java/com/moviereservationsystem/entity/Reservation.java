@@ -29,6 +29,11 @@ public class Reservation {
     @JoinColumn(name = "showtime_id", nullable = false)
     private Showtime showtime;
 
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "coupon_id")
+    private Coupon appliedCoupon;
+
+    private BigDecimal discountAmount;
+
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
@@ -38,6 +43,8 @@ public class Reservation {
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
+
+    private LocalDateTime cancelledAt;
 
     @CreationTimestamp
     @Column(name = "created_at",nullable = false)

@@ -1,8 +1,10 @@
 package com.moviereservationsystem.service;
 
 import com.moviereservationsystem.dto.ShowtimeRequest;
+import com.moviereservationsystem.dto.ShowtimeResponse;
 import com.moviereservationsystem.entity.ShowTimeSeat;
 import com.moviereservationsystem.entity.Showtime;
+import jakarta.persistence.Cacheable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
@@ -18,4 +20,6 @@ public interface ShowtimeService {
     Showtime createShowtime( ShowtimeRequest request);
 
      List<ShowTimeSeat> getSeatingPlan(Long id);
+
+    List<ShowtimeResponse> getPublicSchedule(Long movieId, Long hallId);
 }
